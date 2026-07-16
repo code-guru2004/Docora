@@ -1,0 +1,6 @@
+{
+  "name": "Scribd Document Sharing Platform",
+  "description": "A responsive, production-ready document sharing and online viewing platform featuring document discovery, categories, full-featured online document viewing, user dashboard, and bookmarking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
