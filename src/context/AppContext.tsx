@@ -21,7 +21,17 @@ interface AppContextType {
   searchFilterCategory: string;
   searchFilterTag: string;
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
-  dbStatus: { isConnected: boolean; hasUri: boolean; message: string } | null;
+  dbStatus: { 
+    isConnected: boolean; 
+    hasUri: boolean; 
+    message: string; 
+    cloudinary?: {
+      isConfigured: boolean;
+      cloudName?: string;
+      apiKey?: string;
+      message: string;
+    };
+  } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   hideToast: () => void;
   navigate: (route: string, docId?: string | null, userId?: string | null) => void;
@@ -107,7 +117,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   // MongoDB database integration status
-  const [dbStatus, setDbStatus] = useState<{ isConnected: boolean; hasUri: boolean; message: string } | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ 
+    isConnected: boolean; 
+    hasUri: boolean; 
+    message: string; 
+    cloudinary?: {
+      isConfigured: boolean;
+      cloudName?: string;
+      apiKey?: string;
+      message: string;
+    };
+  } | null>(null);
 
   // Initial Load from Server
   const refreshDbStatus = async () => {

@@ -30,6 +30,8 @@ let localReadingHistory: any[] = [];
 // Configure Cloudinary
 const cloudinaryUrl = process.env.CLOUDINARY_URL;
 let isCloudinaryConfigured = false;
+let cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
+let cloudinaryApiKey = process.env.CLOUDINARY_API_KEY || '';
 
 if (cloudinaryUrl) {
   try {
@@ -38,6 +40,11 @@ if (cloudinaryUrl) {
     });
     isCloudinaryConfigured = true;
     console.log('✅ Cloudinary initialized successfully via CLOUDINARY_URL.');
+    const match = cloudinaryUrl.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+    if (match) {
+      cloudinaryApiKey = match[1];
+      cloudinaryCloudName = match[3];
+    }
   } catch (err) {
     console.error('❌ Failed to initialize Cloudinary via CLOUDINARY_URL:', err);
   }
@@ -156,11 +163,41 @@ async function startServer() {
         : 'Running in Local Demo Mode. Set MONGODB_URI in settings to enable durable MongoDB cloud database storage.',
       cloudinary: {
         isConfigured: isCloudinaryConfigured,
+        cloudName: cloudinaryCloudName,
+        apiKey: cloudinaryApiKey,
         message: isCloudinaryConfigured
           ? 'Cloudinary cloud storage is active and connected.'
           : 'Cloudinary is not configured. Document uploads will fall back to local preview mode.'
       }
     });
+  });
+
+  // API: Cloudinary Signature
+  app.post('/api/cloudinary-signature', (req, res) => {
+    try {
+      const { params_to_sign } = req.body;
+      if (!params_to_sign) {
+        return res.status(400).json({ error: 'params_to_sign is required' });
+      }
+      
+      let finalApiSecret = process.env.CLOUDINARY_API_SECRET || '';
+      if (!finalApiSecret && cloudinaryUrl) {
+        const match = cloudinaryUrl.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+        if (match) {
+          finalApiSecret = match[2];
+        }
+      }
+      
+      if (!finalApiSecret) {
+        return res.status(400).json({ error: 'Cloudinary API secret is not configured' });
+      }
+      
+      const signature = cloudinary.utils.api_sign_request(params_to_sign, finalApiSecret);
+      res.json({ signature });
+    } catch (error: any) {
+      console.error('Error signing Cloudinary request:', error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // 2. API: Get Documents
