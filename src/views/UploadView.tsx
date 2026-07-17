@@ -31,12 +31,15 @@ export const UploadView: React.FC = () => {
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(['guide']);
 
-  // File Upload states
-  const [file, setFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
+  // Cloudinary Upload Widget States
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [uploadedFileType, setUploadedFileType] = useState<string>('');
+  const [uploadedFileSize, setUploadedFileSize] = useState<string>('');
+
+  // Local/UI Uploading status
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [fileError, setFileError] = useState('');
 
   // Cover design gradient presets
   const [selectedGradient, setSelectedGradient] = useState('linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)');
@@ -70,69 +73,6 @@ export const UploadView: React.FC = () => {
 
   if (!currentUser) return null;
 
-  // File format check
-  const allowedExtensions = ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'];
-  const maxFileSizeMB = 30;
-
-  const validateFile = (selectedFile: File): boolean => {
-    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
-    
-    if (!ext || !allowedExtensions.includes(ext)) {
-      setFileError(`Unsupported format .${ext}. Only PDF, PowerPoint, Word, and Excel spreadsheets are supported.`);
-      showToast('Unsupported file type', 'error');
-      return false;
-    }
-
-    const fileSizeMB = selectedFile.size / (1024 * 1024);
-    if (fileSizeMB > maxFileSizeMB) {
-      setFileError(`File exceeds maximum limit of 30 MB (Your file is ${fileSizeMB.toFixed(1)} MB).`);
-      showToast('File size too large', 'error');
-      return false;
-    }
-
-    setFileError('');
-    return true;
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (validateFile(droppedFile)) {
-        setFile(droppedFile);
-        if (!title) {
-          // Auto fill title with file name without extension
-          setTitle(droppedFile.name.replace(/\.[^/.]+$/, ''));
-        }
-      }
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (validateFile(selectedFile)) {
-        setFile(selectedFile);
-        if (!title) {
-          setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''));
-        }
-      }
-    }
-  };
-
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -152,10 +92,103 @@ export const UploadView: React.FC = () => {
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  // Cloudinary Upload Widget handler
+  const openCloudinaryWidget = () => {
+    if (!title.trim()) {
+      showToast('Please type the file title first before uploading.', 'error');
+      return;
+    }
+
+    if (!(window as any).cloudinary) {
+      showToast('Cloudinary script is still loading, please wait a moment.', 'info');
+      return;
+    }
+
+    const cloudName = dbStatus?.cloudinary?.cloudName || 'xa5kkc22';
+    const apiKey = dbStatus?.cloudinary?.apiKey || '873384513429876';
+
+    const widget = (window as any).cloudinary.createUploadWidget({
+      cloudName: cloudName,
+      apiKey: apiKey,
+      uploadSignature: function(callback: any, params_to_sign: any) {
+        fetch('/api/cloudinary-signature', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ params_to_sign })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.signature) {
+            callback(data.signature);
+          } else {
+            console.error('Failed to get signature:', data);
+            showToast('Failed to sign upload request. Check your Cloudinary configuration.', 'error');
+          }
+        })
+        .catch(err => {
+          console.error('Signature fetch error:', err);
+          showToast('Failed to sign upload request.', 'error');
+        });
+      },
+      clientAllowedFormats: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'],
+      maxFileSize: 31457280, // 30 MB in bytes
+      sources: ['local', 'url', 'google_drive', 'dropbox'],
+      multiple: false,
+      folder: 'docshare_documents',
+      styles: {
+        palette: {
+          window: '#FFFFFF',
+          windowBorder: '#E2E8F0',
+          tabIcon: '#3B82F6',
+          menuIcons: '#5A616A',
+          textDark: '#0F172A',
+          textLight: '#FFFFFF',
+          link: '#3B82F6',
+          action: '#3B82F6',
+          inactiveTabIcon: '#94A3B8',
+          error: '#EF4444',
+          inProgress: '#3B82F6',
+          complete: '#10B981',
+          sourceBg: '#F8FAFC'
+        },
+        fonts: {
+          default: null,
+          "'Inter', sans-serif": {
+            url: 'https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap',
+            active: true
+          }
+        }
+      }
+    }, (error: any, result: any) => {
+      if (error) {
+        console.error('Cloudinary Widget Error:', error);
+        showToast('An error occurred during upload widget initialization.', 'error');
+        return;
+      }
+      
+      if (result && result.event === "success") {
+        const info = result.info;
+        console.log('Cloudinary upload success info:', info);
+        
+        // Save the details
+        setUploadedFileUrl(info.secure_url);
+        setUploadedFileName(info.original_filename + '.' + info.format);
+        setUploadedFileType(info.format);
+        setUploadedFileSize(`${(info.bytes / (1024 * 1024)).toFixed(1)} MB`);
+        
+        showToast('Document uploaded successfully to Cloudinary!', 'success');
+      }
+    });
+
+    widget.open();
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setFileError('Please select a valid document to upload.');
+    if (!uploadedFileUrl) {
+      showToast('Please upload a file using the Cloudinary Widget first.', 'error');
       return;
     }
     if (!title.trim()) {
@@ -164,79 +197,53 @@ export const UploadView: React.FC = () => {
     }
 
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(40);
 
-    const reader = new FileReader();
+    const finalExt = uploadedFileType || 'pdf';
 
-    reader.onloadstart = () => {
-      setUploadProgress(20);
-    };
+    // Generate a few pages of dummy visual text based on title and category so viewer can show text!
+    let generatedPages = [];
+    if (finalExt === 'ppt' || finalExt === 'pptx') {
+      generatedPages = [
+        `[SLIDE 1: COVER]\n${title.toUpperCase()}\n\nPresented in ${category} category\nLanguage: ${language}\nFile: ${uploadedFileName}\n\n- Welcome to the Presentation\n- Built for digital sharing`,
+        `[SLIDE 2: OVERVIEW]\nKEY CONCEPTS & METHODOLOGY\n\n- Primary objective: Accelerate knowledge dissemination\n- Core metrics and target demographics\n- Strategic alignment across academic fields`,
+        `[SLIDE 3: KEY TAKEAWAYS]\nRECOMMENDATIONS & CONTEXT\n\n- Ensure consistency across files\n- Reduce viewer padding for optimal display\n- Leverage online review tools`
+      ];
+    } else {
+      generatedPages = [
+        `PUBLICATION TITLE: ${title.toUpperCase()}\nCategory: ${category}\nLanguage: ${language}\nFile Name: ${uploadedFileName}\nSize: ${uploadedFileSize}\n\n--- INTRODUCTION & SYNOPSIS ---\nThis document represents a formal research brief or informational handbook. The following chapters address the critical parameters of ${category} methodologies, compiling historical trends, and proposing architectural blueprints.`,
+        `--- SEGMENT 1: CORE DATA ANALYSIS ---\n- Empirical assessments outline standard operational coefficients.\n- Standard deviations have stabilized in the nominal ±1.5% baseline.\n- Visual telemetry demonstrates that integration speedups scale quadratically under standard loads.\n- Operational pipelines have been cleared for production deployment and general testing.`,
+        `--- SUMMARY AND STRATEGIC RECOMMENDATIONS ---\nBased on these compiled reviews, we suggest the following key actions:\n1. Audit active resource allocations annually to prevent waste.\n2. Leverage modern cloud pipelines to maximize synchronization across remote platforms.\n3. Publish progress reports consistently to foster community feedback and academic engagement.`
+      ];
+    }
 
-    reader.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 70) + 20; // 20% to 90%
-        setUploadProgress(percent);
-      }
-    };
+    setUploadProgress(80);
 
-    reader.onload = async () => {
-      const base64Data = reader.result as string;
-      setUploadProgress(95);
+    try {
+      await uploadDocument({
+        title: title.trim(),
+        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+        description: description.trim() || `Public handbook regarding ${title}. Published for general academic sharing.`,
+        category,
+        tags,
+        language,
+        coverImage: selectedGradient,
+        fileType: finalExt as any,
+        fileSize: uploadedFileSize,
+        totalPages: generatedPages.length,
+        visibility,
+        pages: generatedPages,
+        fileUrl: uploadedFileUrl,
+        originalname: uploadedFileName
+      });
 
-      const finalExt = file.name.split('.').pop()?.toLowerCase() || 'pdf';
-
-      // Generate a few pages of dummy visual text based on title and category so viewer can show text!
-      let generatedPages = [];
-      if (finalExt === 'ppt' || finalExt === 'pptx') {
-        generatedPages = [
-          `[SLIDE 1: COVER]\n${title.toUpperCase()}\n\nPresented in ${category} category\nLanguage: ${language}\nFile: ${file.name}\n\n- Welcome to the Presentation\n- Built for digital sharing`,
-          `[SLIDE 2: OVERVIEW]\nKEY CONCEPTS & METHODOLOGY\n\n- Primary objective: Accelerate knowledge dissemination\n- Core metrics and target demographics\n- Strategic alignment across academic fields`,
-          `[SLIDE 3: KEY TAKEAWAYS]\nRECOMMENDATIONS & CONTEXT\n\n- Ensure consistency across files\n- Reduce viewer padding for optimal display\n- Leverage online review tools`
-        ];
-      } else {
-        generatedPages = [
-          `PUBLICATION TITLE: ${title.toUpperCase()}\nCategory: ${category}\nLanguage: ${language}\nFile Name: ${file.name}\nSize: ${(file.size / (1024*1024)).toFixed(2)} MB\n\n--- INTRODUCTION & SYNOPSIS ---\nThis document represents a formal research brief or informational handbook. The following chapters address the critical parameters of ${category} methodologies, compiling historical trends, and proposing architectural blueprints.`,
-          `--- SEGMENT 1: CORE DATA ANALYSIS ---\n- Empirical assessments outline standard operational coefficients.\n- Standard deviations have stabilized in the nominal ±1.5% baseline.\n- Visual telemetry demonstrates that integration speedups scale quadratically under standard loads.\n- Operational pipelines have been cleared for production deployment and general testing.`,
-          `--- SUMMARY AND STRATEGIC RECOMMENDATIONS ---\nBased on these compiled reviews, we suggest the following key actions:\n1. Audit active resource allocations annually to prevent waste.\n2. Leverage modern cloud pipelines to maximize synchronization across remote platforms.\n3. Publish progress reports consistently to foster community feedback and academic engagement.`
-        ];
-      }
-
-      // Save to App context
-      const fileUrl = finalExt === 'pdf' ? URL.createObjectURL(file) : undefined;
-
-      try {
-        await uploadDocument({
-          title: title.trim(),
-          slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
-          description: description.trim() || `Public handbook regarding ${title}. Published for general academic sharing.`,
-          category,
-          tags,
-          language,
-          coverImage: selectedGradient,
-          fileType: finalExt as any,
-          fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          totalPages: generatedPages.length,
-          visibility,
-          pages: generatedPages,
-          fileUrl,
-          originalname: file.name
-        }, base64Data);
-
-        setUploadProgress(100);
-        setIsUploading(false);
-      } catch (err) {
-        console.error('Upload handler error:', err);
-        setIsUploading(false);
-        showToast('Failed to complete document upload.', 'error');
-      }
-    };
-
-    reader.onerror = () => {
+      setUploadProgress(100);
       setIsUploading(false);
-      showToast('Error reading the local document file.', 'error');
-    };
-
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Upload handler error:', err);
+      setIsUploading(false);
+      showToast('Failed to complete document upload.', 'error');
+    }
   };
 
   return (
@@ -246,7 +253,7 @@ export const UploadView: React.FC = () => {
       <div className="border-b border-gray-100 pb-5 text-center md:text-left">
         <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Upload Your Document</h1>
         <p className="mt-2 text-sm text-gray-500">
-          Share your slides, spreadsheet templates, lecture notes, or textbooks with our global reader community
+          Share your slides, spreadsheet templates, lecture notes, or textbooks with our global reader community using Cloudinary
         </p>
       </div>
 
@@ -257,83 +264,12 @@ export const UploadView: React.FC = () => {
           
           <form onSubmit={handleFormSubmit} className="space-y-6">
             
-            {/* 1. Drag & Drop Field */}
-            <div className="space-y-2">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400">Select Document</label>
-              
-              <div
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-                  dragActive 
-                    ? 'border-blue-600 bg-blue-50/50' 
-                    : 'border-gray-200 bg-white hover:border-blue-400'
-                }`}
-              >
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx"
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                  id="document-file-input"
-                />
-
-                {file ? (
-                  <div className="space-y-2 z-10">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                      <FileText className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">{file.name}</p>
-                      <p className="text-xs text-gray-500">{(file.size / (1024 * 1024)).toFixed(1)} MB • Click or drag to change</p>
-                    </div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
-                      <Check className="h-3 w-3" /> Ready to publish
-                    </span>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gray-50 text-gray-400">
-                      <UploadCloud className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-700">Drag & drop your file here, or click to browse</p>
-                      <p className="text-xs text-gray-400 mt-1">Supports PDF, PPT, PPTX, DOC, DOCX, XLS, XLSX (Max 30MB)</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {fileError && (
-                <div className="flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
-                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <p>{fileError}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Upload Progress Bar (If uploading) */}
-            {isUploading && (
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-gray-600">
-                  <span>Uploading files to secure cloud...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                  <div 
-                    className="h-full bg-blue-600 transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
-
-            {/* Title & Description */}
+            {/* 1. Document Title & Description */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400">Document Title</label>
+                <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400 block">
+                  Step 1: Document Title <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. Advanced Calculus Lecture Handout Week 3"
@@ -343,10 +279,13 @@ export const UploadView: React.FC = () => {
                   id="upload-title-input"
                   required
                 />
+                <p className="text-[11px] text-gray-400">
+                  You must type the file title here first to enable document upload.
+                </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400">Description / Synopsis</label>
+                <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400 block">Description / Synopsis</label>
                 <textarea
                   placeholder="Detail the contents, syllabus, or findings covered inside this document to help readers find it..."
                   value={description}
@@ -357,7 +296,7 @@ export const UploadView: React.FC = () => {
               </div>
             </div>
 
-            {/* Category, Lang, Visibility */}
+            {/* 2. Category, Lang, Visibility */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               
               <div className="space-y-2">
@@ -417,7 +356,7 @@ export const UploadView: React.FC = () => {
 
             </div>
 
-            {/* Tags Multiple manager */}
+            {/* 3. Tags Multiple manager */}
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400">Tags (press Enter or comma to add — max 3)</label>
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 focus-within:border-blue-500">
@@ -446,10 +385,82 @@ export const UploadView: React.FC = () => {
               </div>
             </div>
 
+            {/* 4. Cloudinary Upload Widget Section */}
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-gray-400 block">
+                Step 2: Select Document File <span className="text-red-500">*</span>
+              </label>
+              
+              {uploadedFileUrl ? (
+                /* Success Uploaded state */
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/20 p-6 text-center space-y-4">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{uploadedFileName}</p>
+                    <p className="text-xs text-gray-500">{uploadedFileSize} • Ready to publish</p>
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={openCloudinaryWidget}
+                      className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+                    >
+                      Replace File via Cloudinary
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Empty / No file state */
+                <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-8 text-center space-y-4 transition-all hover:border-blue-400">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gray-50 text-gray-400">
+                    <UploadCloud className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-700">No document file selected yet</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Supports PDF, PPT, PPTX, DOC, DOCX, XLS, XLSX up to 30MB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openCloudinaryWidget}
+                    className={`rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition-all ${
+                      !title.trim() ? 'opacity-50 cursor-not-allowed bg-gray-400 hover:bg-gray-400' : ''
+                    }`}
+                  >
+                    Open Cloudinary Upload Widget
+                  </button>
+                  {!title.trim() && (
+                    <p className="text-[11px] text-amber-600 font-semibold mt-1">
+                      ⚠️ Please type the file title in Step 1 first to unlock the file upload.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Upload Progress Bar (If uploading / saving) */}
+            {isUploading && (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-600">
+                  <span>Saving your publication...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div 
+                    className="h-full bg-blue-600 transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
             {/* Submit Action */}
             <button
               type="submit"
-              disabled={!file || isUploading}
+              disabled={!uploadedFileUrl || isUploading}
               className="w-full rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 disabled:opacity-40 transition-all active:scale-[0.99]"
             >
               Publish Document to Library
@@ -476,10 +487,10 @@ export const UploadView: React.FC = () => {
               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:16px_16px] opacity-25"></div>
               <div className="z-10 flex flex-col items-center justify-center gap-2">
                 <span className="rounded bg-white/25 px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-widest">
-                  {file ? file.name.split('.').pop() : 'PDF'} Format
+                  {uploadedFileType || 'PDF'} Format
                 </span>
-                <p className="line-clamp-3 text-sm font-bold text-white drop-shadow-sm px-2">
-                  {title || 'Untitiled Publication'}
+                <p className="line-clamp-3 text-sm font-bold text-white drop-shadow-sm px-2 font-sans">
+                  {title || 'Untitled Publication'}
                 </p>
                 <span className="text-[10px] text-white/70">
                   by {currentUser.name}
