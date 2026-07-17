@@ -81,6 +81,8 @@ const DocumentSchema = new mongoose.Schema({
   totalPages: { type: Number, required: true },
   views: { type: Number, default: 0 },
   downloads: { type: Number, default: 0 },
+  viewedBy: { type: [String], default: [] },
+  downloadedBy: { type: [String], default: [] },
   likes: { type: Number, default: 0 },
   likedBy: { type: [String], default: [] },
   visibility: { type: String, enum: ['public', 'private'], default: 'public' },

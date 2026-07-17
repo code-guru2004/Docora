@@ -377,9 +377,13 @@ async function startServer() {
       // Determine file type from original uploaded filename
       const originalname = req.body.originalname || req.body.fileName || '';
       const file = { originalname };
-      const fileType = originalname
+      let fileType = originalname
         ? path.extname(file.originalname).replace(".", "").toLowerCase()
         : (docData.fileType || 'pdf');
+
+      if (!fileType || fileType === 'undefined' || fileType === '') {
+        fileType = docData.fileType || 'pdf';
+      }
 
       const newDocId = `doc_${Date.now()}`;
       const newDoc = {
@@ -459,19 +463,36 @@ async function startServer() {
   app.post('/api/documents/:id/view', async (req, res) => {
     try {
       const { id } = req.params;
+      const { userId } = req.body;
       if (isConnected) {
+        const doc = await DbDocument.findOne({ id } as any);
+        if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+        const viewedBy = doc.viewedBy || [];
+        const hasViewed = userId ? viewedBy.includes(userId) : false;
+        const updatedViewedBy = (userId && !hasViewed) ? [...viewedBy, userId] : viewedBy;
+
         const updated = await DbDocument.findOneAndUpdate(
           { id } as any,
-          { $inc: { views: 1 } } as any,
+          { 
+            $inc: { views: 1 },
+            $set: { viewedBy: updatedViewedBy }
+          } as any,
           { new: true } as any
         );
         return res.json(processDocument(updated));
       } else {
         const docIdx = localDocuments.findIndex(d => d.id === id);
         if (docIdx === -1) return res.status(404).json({ error: 'Document not found' });
+        const doc = localDocuments[docIdx];
+        const viewedBy = doc.viewedBy || [];
+        const hasViewed = userId ? viewedBy.includes(userId) : false;
+        const updatedViewedBy = (userId && !hasViewed) ? [...viewedBy, userId] : viewedBy;
+
         localDocuments[docIdx] = {
-          ...localDocuments[docIdx],
-          views: (localDocuments[docIdx].views || 0) + 1
+          ...doc,
+          views: (doc.views || 0) + 1,
+          viewedBy: updatedViewedBy
         };
         return res.json(processDocument(localDocuments[docIdx]));
       }
@@ -484,19 +505,36 @@ async function startServer() {
   app.post('/api/documents/:id/download', async (req, res) => {
     try {
       const { id } = req.params;
+      const { userId } = req.body;
       if (isConnected) {
+        const doc = await DbDocument.findOne({ id } as any);
+        if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+        const downloadedBy = doc.downloadedBy || [];
+        const hasDownloaded = userId ? downloadedBy.includes(userId) : false;
+        const updatedDownloadedBy = (userId && !hasDownloaded) ? [...downloadedBy, userId] : downloadedBy;
+
         const updated = await DbDocument.findOneAndUpdate(
           { id } as any,
-          { $inc: { downloads: 1 } } as any,
+          { 
+            $inc: { downloads: 1 },
+            $set: { downloadedBy: updatedDownloadedBy }
+          } as any,
           { new: true } as any
         );
         return res.json(processDocument(updated));
       } else {
         const docIdx = localDocuments.findIndex(d => d.id === id);
         if (docIdx === -1) return res.status(404).json({ error: 'Document not found' });
+        const doc = localDocuments[docIdx];
+        const downloadedBy = doc.downloadedBy || [];
+        const hasDownloaded = userId ? downloadedBy.includes(userId) : false;
+        const updatedDownloadedBy = (userId && !hasDownloaded) ? [...downloadedBy, userId] : downloadedBy;
+
         localDocuments[docIdx] = {
-          ...localDocuments[docIdx],
-          downloads: (localDocuments[docIdx].downloads || 0) + 1
+          ...doc,
+          downloads: (doc.downloads || 0) + 1,
+          downloadedBy: updatedDownloadedBy
         };
         return res.json(processDocument(localDocuments[docIdx]));
       }

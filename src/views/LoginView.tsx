@@ -14,26 +14,26 @@ export const LoginView: React.FC = () => {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setErrors('Please fill in all credentials fields.');
       return;
     }
 
-    const success = login(email.trim());
+    const success = await login(email.trim());
     if (success) {
-      navigate('dashboard');
+      navigate('explore');
     } else {
       setErrors('No user found with this email address. Try "sarah.j@edu.org" or "marcus.chen@tech.com".');
     }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     // Simulate logging in with first mock user
-    const success = login('sarah.j@edu.org');
+    const success = await login('sarah.j@edu.org');
     if (success) {
-      navigate('dashboard');
+      navigate('explore');
     }
   };
 

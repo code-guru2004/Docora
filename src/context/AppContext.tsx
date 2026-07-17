@@ -50,11 +50,25 @@ interface AppContextType {
   toggleDocumentVisibility: (docId: string) => Promise<void>;
   refreshDbStatus: () => Promise<void>;
   updateProfile: (name: string, bio: string, avatar: string, socialLinks: { facebook?: string; instagram?: string; telegram?: string; linkedin?: string; }) => Promise<boolean>;
+  isLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const getOrCreateGuestId = (): string => {
+  if (typeof window === 'undefined') return '';
+  let gId = localStorage.getItem('docshare_guest_id');
+  if (!gId) {
+    gId = 'guest_' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('docshare_guest_id', gId);
+  }
+  return gId;
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Loading State
+  const [isLoading, setIsLoading] = useState(true);
+
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
@@ -179,11 +193,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    // Check MongoDB Status and Seed status
-    refreshDbStatus();
-    loadDocuments();
-    loadUsers();
-    loadComments();
+    const initializeData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([
+          refreshDbStatus(),
+          loadDocuments(),
+          loadUsers(),
+          loadComments()
+        ]);
+      } catch (err) {
+        console.warn('Failed to fetch data from API:', err);
+      } finally {
+        // Add a small delay so the beautiful skeleton loaders can be fully appreciated
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 1200);
+      }
+    };
+
+    initializeData();
 
     // Check Local storage session for user login
     const storedCurrentUser = localStorage.getItem('scribd_current_user');
@@ -327,6 +356,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Redirect logged-in users from login or register views to the explore view
+  useEffect(() => {
+    if (currentUser && (activeRoute === 'login' || activeRoute === 'register')) {
+      navigate('explore');
+    }
+  }, [currentUser, activeRoute]);
 
   const login = async (email: string): Promise<boolean> => {
     try {
@@ -679,9 +715,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const incrementViews = async (docId: string) => {
+    const guestId = getOrCreateGuestId();
+    const activeUserId = currentUser?.id || guestId;
+
     try {
       const res = await fetch(`/api/documents/${docId}/view`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId })
       });
       if (res.ok) {
         const updatedDoc = await res.json();
@@ -691,7 +732,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('API error on views, using local fallback.');
       const updatedDocs = documents.map(doc => {
         if (doc.id === docId) {
-          return { ...doc, views: doc.views + 1 };
+          const viewedBy = doc.viewedBy || [];
+          const hasViewed = activeUserId ? viewedBy.includes(activeUserId) : false;
+          const updatedViewedBy = (activeUserId && !hasViewed) ? [...viewedBy, activeUserId] : viewedBy;
+          return { 
+            ...doc, 
+            views: doc.views + 1,
+            viewedBy: updatedViewedBy
+          };
         }
         return doc;
       });
@@ -707,7 +755,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const res = await fetch(`/api/documents/${docId}/download`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id })
       });
       if (res.ok) {
         const updatedDoc = await res.json();
@@ -718,7 +768,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('API error on download, using local fallback.');
       const updatedDocs = documents.map(doc => {
         if (doc.id === docId) {
-          return { ...doc, downloads: doc.downloads + 1 };
+          const downloadedBy = doc.downloadedBy || [];
+          const hasDownloaded = currentUser?.id ? downloadedBy.includes(currentUser.id) : false;
+          const updatedDownloadedBy = (currentUser?.id && !hasDownloaded) ? [...downloadedBy, currentUser.id] : downloadedBy;
+          return { 
+            ...doc, 
+            downloads: doc.downloads + 1,
+            downloadedBy: updatedDownloadedBy
+          };
         }
         return doc;
       });
@@ -869,7 +926,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteDocument,
         toggleDocumentVisibility,
         refreshDbStatus,
-        updateProfile
+        updateProfile,
+        isLoading
       }}
     >
       {children}

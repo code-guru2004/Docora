@@ -68,10 +68,10 @@ export const Footer: React.FC = () => {
           <div>
             <h3 className="font-semibold text-gray-900">Legal</h3>
             <ul className="mt-4 flex flex-col gap-2">
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Copyright / DMCA</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Support Helpdesk</a></li>
+              <li><button onClick={() => navigate('privacy')} className="hover:text-blue-600 transition-colors text-left cursor-pointer">Privacy Policy</button></li>
+              <li><button onClick={() => navigate('terms')} className="hover:text-blue-600 transition-colors text-left cursor-pointer">Terms of Service</button></li>
+              <li><button onClick={() => navigate('dmca')} className="hover:text-blue-600 transition-colors text-left cursor-pointer">Copyright / DMCA</button></li>
+              <li><button onClick={() => navigate('support')} className="hover:text-blue-600 transition-colors text-left cursor-pointer">Support Helpdesk</button></li>
             </ul>
           </div>
 
