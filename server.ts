@@ -153,6 +153,10 @@ async function startServer() {
   // Initial connection to MongoDB
   await connectToDatabase();
 
+  // Test server route
+  app.get("/api/test", (req, res) => {
+    res.send("Server is working");
+  });
   // 1. API: Connection Status
   app.get('/api/db-status', (req, res) => {
     res.json({
