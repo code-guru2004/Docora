@@ -14,11 +14,11 @@ export const Footer: React.FC = () => {
     <footer className="border-t border-gray-100 bg-gray-50/50 py-12 text-sm font-sans text-gray-500">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-          
+
           {/* Brand Info */}
           <div className="sm:col-span-2">
-            <button 
-              onClick={() => navigate('home')} 
+            <button
+              onClick={() => navigate('home')}
               className="flex items-center gap-2 font-sans text-lg font-bold text-gray-900 focus:outline-none"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white">
@@ -61,6 +61,16 @@ export const Footer: React.FC = () => {
               <li><button onClick={() => navigate('explore')} className="hover:text-blue-600 transition-colors text-left">Trending Guides</button></li>
               <li><button onClick={() => navigate('explore')} className="hover:text-blue-600 transition-colors text-left">Featured Authors</button></li>
               <li><button onClick={() => navigate('dashboard')} className="hover:text-blue-600 transition-colors text-left">User Dashboard</button></li>
+              <li>
+                <a
+                  href="https://weshare-p2p.onrender.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-blue-600 transition-colors text-left"
+                >
+                  P2P File Sharing
+                </a>
+              </li>
             </ul>
           </div>
 
