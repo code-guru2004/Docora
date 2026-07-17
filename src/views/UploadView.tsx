@@ -172,10 +172,38 @@ export const UploadView: React.FC = () => {
         const info = result.info;
         console.log('Cloudinary upload success info:', info);
         
-        // Save the details
+        // Extract format/extension robustly
+        let ext = '';
+        if (info.format) {
+          ext = info.format.toLowerCase();
+        } else if (info.secure_url) {
+          const parts = info.secure_url.split('.');
+          if (parts.length > 1) {
+            ext = parts[parts.length - 1].split('?')[0].toLowerCase();
+          }
+        }
+        
+        if (!ext && info.original_filename) {
+          const parts = info.original_filename.split('.');
+          if (parts.length > 1) {
+            ext = parts[parts.length - 1].toLowerCase();
+          }
+        }
+        
+        if (!ext) {
+          ext = 'pdf';
+        }
+        
+        // Clean up formatting
+        ext = ext.replace(/[^a-zA-Z0-9]/g, '');
+
+        const originalName = info.original_filename 
+          ? (info.original_filename.toLowerCase().endsWith('.' + ext) ? info.original_filename : `${info.original_filename}.${ext}`)
+          : `document.${ext}`;
+
         setUploadedFileUrl(info.secure_url);
-        setUploadedFileName(info.original_filename + '.' + info.format);
-        setUploadedFileType(info.format);
+        setUploadedFileName(originalName);
+        setUploadedFileType(ext);
         setUploadedFileSize(`${(info.bytes / (1024 * 1024)).toFixed(1)} MB`);
         
         showToast('Document uploaded successfully to Cloudinary!', 'success');

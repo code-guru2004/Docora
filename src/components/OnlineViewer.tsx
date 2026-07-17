@@ -39,6 +39,8 @@ export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
   const [searchWord, setSearchWord] = useState('');
   const [searchResults, setSearchResults] = useState<{ pageNum: number; line: string }[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  
+  const isOfficeFile = ['ppt', 'pptx', 'xls', 'xlsx', 'doc', 'docx'].includes(document.fileType?.toLowerCase() || '');
 
   useEffect(() => {
     // Reset state on document change
@@ -325,31 +327,37 @@ export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
         </div>
 
         {/* Center Navigation */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800 focus:outline-none"
-            title="Previous Page"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400">
-            <span className="text-gray-900 dark:text-white">{currentPage}</span>
-            <span>/</span>
-            <span>{activeTotalPages}</span>
-          </div>
+        {!(isOfficeFile && document.fileUrl) ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800 focus:outline-none"
+              title="Previous Page"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400">
+              <span className="text-gray-900 dark:text-white">{currentPage}</span>
+              <span>/</span>
+              <span>{activeTotalPages}</span>
+            </div>
 
-          <button
-            onClick={handleNextPage}
-            disabled={currentPage === activeTotalPages}
-            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800 focus:outline-none"
-            title="Next Page"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === activeTotalPages}
+              className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800 focus:outline-none"
+              title="Next Page"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        ) : (
+          <div className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+            Microsoft Office Reader Mode
+          </div>
+        )}
 
         {/* Right Tools (Zoom, Mode, Fullscreen) */}
         <div className="flex items-center gap-2">
@@ -466,6 +474,17 @@ export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
               onTotalPagesLoaded={setActiveTotalPages}
             />
           </div>
+        ) : isOfficeFile && document.fileUrl ? (
+          <div className="w-full max-w-5xl rounded-xl shadow-sm bg-white border border-gray-200 overflow-hidden">
+            <iframe
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(document.fileUrl)}`}
+              width="100%"
+              height="800"
+              frameBorder="0"
+              title="Office Document Preview"
+              className="w-full h-[600px] md:h-[800px] border-0"
+            />
+          </div>
         ) : (
           <div 
             className={`w-full max-w-4xl rounded-xl shadow-sm transition-all border ${
@@ -484,29 +503,31 @@ export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
       </div>
 
       {/* 4. Navigation Footer */}
-      <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-4 py-3 dark:bg-gray-950/20 dark:border-gray-800">
-        <button
-          onClick={handlePrevPage}
-          disabled={currentPage === 1}
-          className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40 transition-colors"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Previous Page
-        </button>
+      {!(isOfficeFile && document.fileUrl) && (
+        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/30 px-4 py-3 dark:bg-gray-950/20 dark:border-gray-800">
+          <button
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous Page
+          </button>
 
-        <span className="text-xs font-semibold text-gray-500">
-          Viewing in Full Reader Mode
-        </span>
+          <span className="text-xs font-semibold text-gray-500">
+            Viewing in Full Reader Mode
+          </span>
 
-        <button
-          onClick={handleNextPage}
-          disabled={currentPage === activeTotalPages}
-          className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40 transition-colors"
-        >
-          Next Page
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === activeTotalPages}
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          >
+            Next Page
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
     </div>
   );

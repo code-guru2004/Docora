@@ -37,6 +37,8 @@ export interface Document {
   totalPages: number;
   views: number;
   downloads: number;
+  viewedBy?: string[]; // user/guest IDs who viewed it
+  downloadedBy?: string[]; // user/guest IDs who downloaded it
   likes: number;
   likedBy: string[]; // user IDs who liked it
   visibility: 'public' | 'private';

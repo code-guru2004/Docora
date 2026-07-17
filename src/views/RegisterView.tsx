@@ -16,7 +16,7 @@ export const RegisterView: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password.trim()) {
       setErrors('Please fill in all registration fields.');
@@ -31,9 +31,9 @@ export const RegisterView: React.FC = () => {
       return;
     }
 
-    const success = register(name.trim(), email.trim());
+    const success = await register(name.trim(), email.trim());
     if (success) {
-      navigate('dashboard');
+      navigate('explore');
     }
   };
 
