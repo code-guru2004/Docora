@@ -5,7 +5,12 @@
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import dns from 'dns';
 
+
+if (process.env.NODE_ENV !== "production") {
+  dns.setServers(["1.1.1.1", "8.8.8.8"]);
+}
 dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI;

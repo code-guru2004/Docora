@@ -315,7 +315,7 @@ export const ExploreView: React.FC = () => {
           ) : (
             <>
               {/* Document Cards list */}
-              <div className={viewMode === 'grid' ? "grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid grid-cols-1 gap-4"}>
+              <div className={viewMode === 'grid' ? "grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 " : "grid grid-cols-1 gap-4"}>
                 {paginatedDocs.map(doc => (
                   <DocumentCard key={doc.id} document={doc} viewMode={viewMode} />
                 ))}
