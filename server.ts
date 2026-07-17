@@ -5,6 +5,7 @@
 
 import express from 'express';
 import path from 'path';
+import fs from 'fs/promises';
 import { createServer as createViteServer } from 'vite';
 import { v2 as cloudinary } from 'cloudinary';
 import { 
@@ -146,6 +147,7 @@ async function deleteCloudinaryFile(url: string | undefined): Promise<void> {
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  let vite: any = null;
 
   // Middleware
   app.use(express.json({ limit: '10mb' }));
@@ -1011,9 +1013,93 @@ async function startServer() {
     }
   });
 
+  // Dynamic document metadata injection route for Facebook, Telegram, WhatsApp, Twitter sharing
+  app.get('/explore/:docId', async (req, res, next) => {
+    try {
+      const { docId } = req.params;
+      
+      // Fetch the document
+      let doc: any = null;
+      if (isConnected) {
+        doc = await DbDocument.findOne({ id: docId });
+      } else {
+        doc = localDocuments.find(d => d.id === docId);
+      }
+      
+      // If no document found, just let standard routing handle it
+      if (!doc) {
+        return next();
+      }
+
+      // Read index.html
+      let templatePath = '';
+      if (process.env.NODE_ENV !== 'production') {
+        templatePath = path.join(process.cwd(), 'index.html');
+      } else {
+        templatePath = path.join(process.cwd(), 'dist', 'index.html');
+      }
+
+      let html = await fs.readFile(templatePath, 'utf-8');
+
+      // Transform index.html if we are in dev mode using Vite
+      if (process.env.NODE_ENV !== 'production' && vite) {
+        html = await vite.transformIndexHtml(req.url, html);
+      }
+
+      // Prepare metadata
+      const docTitle = doc.title || 'Academic Document';
+      const docDesc = doc.description || `Read this document shared on DocShare. Category: ${doc.category || 'General'}.`;
+      const author = doc.authorName || 'Educator';
+      const category = doc.category || 'Academic';
+      const fileType = (doc.fileType || 'PDF').toUpperCase();
+      const numPages = doc.totalPages || 1;
+      
+      const pageTitle = `${docTitle} (${fileType}, ${numPages} pages) | Shared by ${author} on DocShare`;
+      
+      // Use cover image if available, otherwise a high-quality academic background from Unsplash
+      const coverImage = doc.coverImage || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1200&q=80';
+
+      const hostname = req.get('host') || 'localhost:3000';
+      const protocol = req.protocol || 'http';
+      const fullUrl = `${protocol}://${hostname}/explore/${docId}`;
+
+      // Build metadata tags
+      const metaTags = `
+    <!-- Standard Meta Tags -->
+    <meta name="description" content="${docDesc}" />
+    <meta name="author" content="${author}" />
+    <meta name="keywords" content="${doc.tags ? doc.tags.join(', ') : ''}, ${category}, DocShare, study, document" />
+
+    <!-- Open Graph / Facebook / WhatsApp / Telegram -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="${fullUrl}" />
+    <meta property="og:title" content="${docTitle}" />
+    <meta property="og:description" content="${docDesc}" />
+    <meta property="og:image" content="${coverImage}" />
+    <meta property="og:site_name" content="DocShare" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="${fullUrl}" />
+    <meta name="twitter:title" content="${docTitle}" />
+    <meta name="twitter:description" content="${docDesc}" />
+    <meta name="twitter:image" content="${coverImage}" />
+      `;
+
+      // Replace default title and insert meta tags in <head>
+      html = html.replace(/<title>.*?<\/title>/, `<title>${pageTitle}</title>`);
+      html = html.replace('</head>', `${metaTags}\n  </head>`);
+
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+    } catch (err) {
+      console.error('Error injecting dynamic sharing metadata:', err);
+      next();
+    }
+  });
+
   // Vite development integration or static serving
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
