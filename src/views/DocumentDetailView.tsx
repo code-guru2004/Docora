@@ -161,7 +161,7 @@ export const DocumentDetailView: React.FC = () => {
   };
 
   const copyShareLink = () => {
-    const url = `${window.location.origin}/document/${doc.slug}`;
+    const url = `${window.location.origin}/explore/${doc.id}`;
     navigator.clipboard.writeText(url);
     showToast('Share link copied to clipboard!', 'success');
     setShowShareModal(false);
@@ -606,7 +606,7 @@ export const DocumentDetailView: React.FC = () => {
             
             <div className="mt-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/50 p-2 text-xs">
               <span className="truncate flex-1 text-gray-600 select-all px-1">
-                {window.location.origin}/document/{doc.slug}
+                {window.location.origin}/explore/{doc.id}
               </span>
               <button
                 onClick={copyShareLink}
