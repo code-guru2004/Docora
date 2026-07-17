@@ -132,7 +132,7 @@ export const UploadView: React.FC = () => {
           showToast('Failed to sign upload request.', 'error');
         });
       },
-      clientAllowedFormats: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'],
+      clientAllowedFormats: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx','zip'],
       maxFileSize: 31457280, // 30 MB in bytes
       sources: ['local', 'url', 'google_drive', 'dropbox'],
       multiple: false,
