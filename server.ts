@@ -153,6 +153,11 @@ async function startServer() {
   // Initial connection to MongoDB
   await connectToDatabase();
 
+  // --- Lightweight keep-alive endpoint for Render free tier ---
+  app.get('/api/keepalive', (req, res) => {
+    res.status(200).send('OK');
+  });
+
   // Test server route
   app.get("/api/test", (req, res) => {
     res.send("Server is working");
