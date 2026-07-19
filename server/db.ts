@@ -78,7 +78,7 @@ const DocumentSchema = new mongoose.Schema({
   coverImage: { type: String, required: true },
   fileType: { type: String, required: true },
   fileSize: { type: String, required: true },
-  totalPages: { type: Number, required: true },
+  totalPages: { type: Number, required: false, default: null },
   views: { type: Number, default: 0 },
   downloads: { type: Number, default: 0 },
   viewedBy: { type: [String], default: [] },

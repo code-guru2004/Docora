@@ -34,7 +34,7 @@ export interface Document {
   coverImage: string; // URL or background CSS gradient
   fileType: 'pdf' | 'ppt' | 'pptx' | 'doc' | 'docx' | 'xls' | 'xlsx';
   fileSize: string;
-  totalPages: number;
+  totalPages: number | null;
   views: number;
   downloads: number;
   viewedBy?: string[]; // user/guest IDs who viewed it

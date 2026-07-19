@@ -8,6 +8,9 @@ import { useApp } from '../context/AppContext';
 import { UploadCloud, FileText, Check, AlertTriangle, ShieldCheck, HelpCircle } from 'lucide-react';
 import { MOCK_CATEGORIES } from '../data/mockData';
 import { CategoryCombobox } from '../components/CategoryCombobox';
+import { pdfjs } from 'react-pdf';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export const UploadView: React.FC = () => {
   const { currentUser, uploadDocument, showToast, navigate, dbStatus } = useApp();
@@ -245,6 +248,23 @@ export const UploadView: React.FC = () => {
       ];
     }
 
+    let calculatedTotalPages: number | null = null;
+    if (finalExt === 'pdf') {
+      try {
+        setUploadProgress(60);
+        console.log('Loading PDF with pdfjs to detect page count:', uploadedFileUrl);
+        const loadingTask = pdfjs.getDocument({ url: uploadedFileUrl, withCredentials: false });
+        const pdf = await loadingTask.promise;
+        calculatedTotalPages = pdf.numPages;
+        console.log('Successfully determined PDF totalPages:', calculatedTotalPages);
+      } catch (err) {
+        console.warn('Could not count PDF pages with pdfjs (CORS or file access issues), falling back:', err);
+        calculatedTotalPages = generatedPages.length;
+      }
+    } else {
+      calculatedTotalPages = null;
+    }
+
     setUploadProgress(80);
 
     try {
@@ -258,7 +278,7 @@ export const UploadView: React.FC = () => {
         coverImage: selectedGradient,
         fileType: finalExt as any,
         fileSize: uploadedFileSize,
-        totalPages: generatedPages.length,
+        totalPages: calculatedTotalPages,
         visibility,
         pages: generatedPages,
         fileUrl: uploadedFileUrl,

@@ -21,7 +21,9 @@ import {
   ChevronRight,
   Send,
   Lock,
-  ArrowLeft
+  ArrowLeft,
+  QrCode,
+  Copy
 } from 'lucide-react';
 
 export const DocumentDetailView: React.FC = () => {
@@ -160,11 +162,32 @@ export const DocumentDetailView: React.FC = () => {
     setShowShareModal(true);
   };
 
+  const shareUrl = `${window.location.origin}/explore/${doc.id}`;
+
   const copyShareLink = () => {
-    const url = `${window.location.origin}/document/${doc.slug}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(shareUrl);
     showToast('Share link copied to clipboard!', 'success');
-    setShowShareModal(false);
+  };
+
+  const downloadQRCode = async () => {
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(shareUrl)}`;
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `qrcode-${doc.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      showToast('QR Code image downloaded successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to download QR code', error);
+      showToast('Opening QR Code image in new tab...', 'info');
+      window.open(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(shareUrl)}`, '_blank');
+    }
   };
 
   const formattedDate = new Date(doc.createdAt).toLocaleDateString('en-US', {
@@ -203,7 +226,7 @@ export const DocumentDetailView: React.FC = () => {
                 {doc.title}
               </p>
               <span className="text-xs font-medium text-white/80">
-                {doc.totalPages} Pages • {doc.fileSize}
+                {doc.totalPages !== null ? `${doc.totalPages} Pages • ` : ''}{doc.fileSize}
               </span>
             </div>
             <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10"></div>
@@ -298,7 +321,7 @@ export const DocumentDetailView: React.FC = () => {
             </div>
             <div className="rounded-xl border border-gray-100 p-3 bg-gray-50/20">
               <span className="text-[10px] font-extrabold uppercase text-gray-400">Total Pages</span>
-              <p className="mt-0.5 text-xs font-bold text-gray-800">{doc.totalPages} Pages</p>
+              <p className="mt-0.5 text-xs font-bold text-gray-800">{doc.totalPages !== null ? `${doc.totalPages} Pages` : 'N/A'}</p>
             </div>
             <div className="rounded-xl border border-gray-100 p-3 bg-gray-50/20">
               <span className="text-[10px] font-extrabold uppercase text-gray-400">File Type</span>
@@ -599,28 +622,59 @@ export const DocumentDetailView: React.FC = () => {
 
       {/* Share Modal Dialog */}
       {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-bold text-gray-900">Share this Publication</h3>
-            <p className="mt-1 text-xs text-gray-500">Anyone with this link can view the public document and read online.</p>
-            
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/50 p-2 text-xs">
-              <span className="truncate flex-1 text-gray-600 select-all px-1">
-                {window.location.origin}/document/{doc.slug}
-              </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-xl space-y-5">
+            <div className="text-center">
+              <h3 className="text-base font-extrabold text-gray-900">Share & Scan Document</h3>
+              <p className="mt-1 text-xs text-gray-500">Every document has a unique mobile-friendly URL. Scan the QR code with any phone camera to open instantly.</p>
+            </div>
+
+            {/* QR Code Container */}
+            <div className="flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border border-gray-100 p-5 shadow-xs">
+              <div className="relative p-3 bg-white rounded-xl border border-gray-200/60 shadow-xs hover:scale-[1.02] transition-transform">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`} 
+                  alt="Document QR Code" 
+                  className="h-44 w-44 object-contain select-none"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <p className="mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <QrCode className="h-3 w-3 text-blue-500 animate-pulse" />
+                Scan to Open Instantly
+              </p>
+              
               <button
-                onClick={copyShareLink}
-                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                onClick={downloadQRCode}
+                className="mt-4 flex items-center gap-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 shadow-xs transition-all active:scale-95 cursor-pointer"
               >
-                Copy
+                <Download className="h-3.5 w-3.5 text-blue-500" />
+                Download QR Code Image
               </button>
+            </div>
+
+            {/* Share Link Row */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">Document URL</label>
+              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/50 p-2 text-xs">
+                <span className="truncate flex-1 text-gray-600 select-all px-1 font-mono">
+                  {shareUrl}
+                </span>
+                <button
+                  onClick={copyShareLink}
+                  className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy
+                </button>
+              </div>
             </div>
 
             <button
               onClick={() => setShowShareModal(false)}
-              className="mt-6 w-full rounded-full border border-gray-200 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+              className="w-full rounded-full border border-gray-200 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer active:scale-98 transition-all"
             >
-              Close Panel
+              Close Share Panel
             </button>
           </div>
         </div>

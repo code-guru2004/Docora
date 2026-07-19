@@ -27,7 +27,7 @@ interface OnlineViewerProps {
 
 export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTotalPages, setActiveTotalPages] = useState(document.totalPages);
+  const [activeTotalPages, setActiveTotalPages] = useState(document.totalPages || document.pages.length);
   const [zoom, setZoom] = useState(100); // percentage (50% to 150%)
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isViewerDarkMode, setIsViewerDarkMode] = useState(false);
@@ -45,7 +45,7 @@ export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
   useEffect(() => {
     // Reset state on document change
     setCurrentPage(1);
-    setActiveTotalPages(document.totalPages);
+    setActiveTotalPages(document.totalPages || document.pages.length);
     setSearchWord('');
     setSearchResults([]);
     setIsSearchActive(false);
@@ -204,7 +204,7 @@ export const OnlineViewer: React.FC<OnlineViewerProps> = ({ document }) => {
             }`}
           >
             <div className="text-right text-[10px] uppercase font-bold tracking-widest text-blue-500">
-              Slide {currentPage} of {document.totalPages}
+              Slide {currentPage} of {activeTotalPages}
             </div>
 
             <div className="my-auto space-y-3">

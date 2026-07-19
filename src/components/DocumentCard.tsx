@@ -180,7 +180,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document, viewMode =
                 {document.category}
               </span>
               <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${getBadgeStyles(document.fileType)}`}>
-                {document.totalPages} pgs
+                {document.totalPages !== null ? `${document.totalPages} pgs` : 'file'}
               </span>
             </div>
 
@@ -378,7 +378,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document, viewMode =
           </p>
           <div className="flex flex-col items-center gap-1.5">
             <div className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md uppercase tracking-wider">
-              {document.fileType || (document.fileUrl ? document.fileUrl.split('?')[0].split('.').pop() : 'pdf')} • {document.totalPages} Pages
+              {document.fileType || (document.fileUrl ? document.fileUrl.split('?')[0].split('.').pop() : 'pdf')}{document.totalPages !== null ? ` • ${document.totalPages} Pages` : ''}
             </div>
             {document.visibility === 'private' && (
               <div className="flex items-center gap-1 rounded bg-amber-500/85 px-2.5 py-0.5 text-[9px] font-extrabold text-white uppercase tracking-wider shadow-sm backdrop-blur-sm">
