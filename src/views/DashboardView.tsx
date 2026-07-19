@@ -23,7 +23,10 @@ import {
   CheckCircle,
   FileSpreadsheet,
   Grid,
-  List
+  List,
+  Users,
+  UserMinus,
+  ExternalLink
 } from 'lucide-react';
 
 export const DashboardView: React.FC = () => {
@@ -35,11 +38,13 @@ export const DashboardView: React.FC = () => {
     showToast,
     navigate,
     users,
-    dbStatus
+    dbStatus,
+    toggleFollow
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'stats' | 'uploads' | 'saved' | 'history' | 'profile' | 'settings'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'uploads' | 'saved' | 'history' | 'profile' | 'settings' | 'following'>('stats');
   const [viewMode, setViewMode] = useState<'grid' | 'row'>('grid');
+  const [selectedFollowedUserId, setSelectedFollowedUserId] = useState<string | null>(null);
 
   // Preference Settings States
   const [profileBio, setProfileBio] = useState('');
@@ -63,6 +68,20 @@ export const DashboardView: React.FC = () => {
       setProfileBio(currentUser.bio || '');
     }
   }, [currentUser]);
+
+  const followedUsers = users.filter(u => currentUser.following?.includes(u.id));
+
+  useEffect(() => {
+    if (activeTab === 'following') {
+      if (followedUsers.length > 0) {
+        if (!selectedFollowedUserId || !currentUser.following?.includes(selectedFollowedUserId)) {
+          setSelectedFollowedUserId(followedUsers[0].id);
+        }
+      } else {
+        setSelectedFollowedUserId(null);
+      }
+    }
+  }, [activeTab, currentUser.following, users, selectedFollowedUserId]);
 
   if (!currentUser) return null;
 
@@ -111,7 +130,7 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         
         {/* Left Side: Sidebar Controls */}
-        <div className="md:col-span-1 space-y-2">
+        <div className="md:col-span-1 md:sticky md:top-24 self-start space-y-2">
           
           <div className="border-b border-gray-100 pb-4 mb-4 text-center md:text-left">
             <div className="flex items-center gap-3">
@@ -129,6 +148,7 @@ export const DashboardView: React.FC = () => {
               { id: 'uploads', label: `My Publications (${myUploadedDocs.length})`, icon: <FileText className="h-4 w-4" /> },
               { id: 'saved', label: `Saved Library (${savedDocs.length})`, icon: <Bookmark className="h-4 w-4" /> },
               { id: 'history', label: 'Reading History', icon: <History className="h-4 w-4" /> },
+              { id: 'following', label: `Following (${currentUser.following?.length || 0})`, icon: <Users className="h-4 w-4" /> },
               { id: 'profile', label: 'Edit Profile Bio', icon: <User className="h-4 w-4" /> },
               { id: 'settings', label: 'Account Settings', icon: <Settings className="h-4 w-4" /> }
             ].map(tab => (
@@ -497,6 +517,141 @@ export const DashboardView: React.FC = () => {
                 </button>
 
               </form>
+            </div>
+          )}
+
+          {/* FOLLOWING tab */}
+          {activeTab === 'following' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h1 className="text-2xl font-extrabold text-gray-900">Following</h1>
+                <p className="text-xs text-gray-500 mt-0.5">Stay updated with publications from educators and authors you follow</p>
+              </div>
+
+              {followedUsers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 py-16 px-4 text-center bg-white shadow-sm">
+                  <Users className="h-10 w-10 text-gray-400 mb-3" />
+                  <p className="text-sm font-bold text-gray-800">You aren't following anyone yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Follow creators and educators from their public profiles to see their uploaded files here.</p>
+                  <button onClick={() => navigate('explore')} className="mt-4 rounded-full bg-blue-600 px-5 py-2 text-xs font-bold text-white transition-all shadow-md active:scale-95">
+                    Explore Directory
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Followed Users list */}
+                  <div className="lg:col-span-1 space-y-3 bg-gray-50/50 p-4 rounded-2xl border border-gray-100 max-h-[600px] overflow-y-auto">
+                    <h3 className="text-xs font-extrabold uppercase text-gray-400 tracking-wider px-1">Authors ({followedUsers.length})</h3>
+                    <div className="space-y-2">
+                      {followedUsers.map(user => {
+                        const isSelected = selectedFollowedUserId === user.id;
+                        return (
+                          <div
+                            key={user.id}
+                            onClick={() => setSelectedFollowedUserId(user.id)}
+                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-blue-50 border-blue-200 shadow-xs'
+                                : 'bg-white border-gray-100 hover:border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <img src={user.avatar} alt={user.name} className="h-9 w-9 rounded-full object-cover border bg-gray-50 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-extrabold text-gray-900 truncate">{user.name}</p>
+                                <p className="text-[10px] font-bold text-gray-400 capitalize mt-0.5">{user.role}</p>
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFollow(user.id);
+                                if (selectedFollowedUserId === user.id) {
+                                  setSelectedFollowedUserId(null);
+                                }
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                              title="Unfollow"
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Selected followed user's uploaded documents */}
+                  <div className="lg:col-span-2 space-y-4">
+                    {(() => {
+                      const selectedUser = followedUsers.find(u => u.id === selectedFollowedUserId);
+                      if (!selectedUser) {
+                        return (
+                          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 p-12 text-center text-xs text-gray-400 h-full min-h-[300px] bg-white">
+                            <p className="font-semibold text-gray-500">Select an author from the list to view their publications</p>
+                          </div>
+                        );
+                      }
+
+                      const authorDocs = documents.filter(doc => doc.uploadedBy === selectedUser.id && doc.visibility === 'public');
+
+                      return (
+                        <div className="space-y-4 animate-fade-in">
+                          {/* Selected User Header */}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
+                            <div className="flex items-center gap-3">
+                              <img src={selectedUser.avatar} alt={selectedUser.name} className="h-11 w-11 rounded-full object-cover border bg-gray-50" />
+                              <div>
+                                <h3 className="text-sm font-extrabold text-gray-900">{selectedUser.name}</h3>
+                                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                                  {authorDocs.length} public uploads • {selectedUser.followersCount} followers
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => navigate('profile', null, selectedUser.id)}
+                                className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white hover:bg-gray-50 px-3.5 py-1.5 text-xs font-bold text-gray-600 shadow-xs transition-all active:scale-95 cursor-pointer"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                View Profile
+                              </button>
+                              <button
+                                onClick={() => {
+                                  toggleFollow(selectedUser.id);
+                                  setSelectedFollowedUserId(null);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-600 hover:bg-red-100 px-3.5 py-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                              >
+                                <UserMinus className="h-3.5 w-3.5" />
+                                Unfollow
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Uploaded Documents List */}
+                          <div>
+                            <h4 className="text-xs font-extrabold uppercase text-gray-400 tracking-wider mb-3 px-1">Uploaded Files ({authorDocs.length})</h4>
+                            {authorDocs.length === 0 ? (
+                              <div className="rounded-2xl border border-dashed border-gray-200 py-12 text-center text-xs text-gray-400 bg-white shadow-xs">
+                                This author has no public publications.
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {authorDocs.map(doc => (
+                                  <DocumentCard key={doc.id} document={doc} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
